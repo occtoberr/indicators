@@ -1,0 +1,38 @@
+
+{
+	"schemaVersion": 1,
+	"id": "indicators",
+	"version": "${version}",
+	"name": "Indicators",
+	"description": "Customizable health, ping and FPS HUD.",
+	"authors": [
+		"RooXChicken",
+		"Softlimit"
+	],
+	"contact": {
+		"homepage": "https://github.com/occtoberr/indicators"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/true-health/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"main": [
+			"com.rooxchicken.truehealth.TrueHealth"
+		],
+		"client": [
+			"com.rooxchicken.truehealth.client.TrueHealthClient"
+		],
+		"modmenu": [
+			"com.rooxchicken.truehealth.client.IndicatorsModMenu"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.0",
+		"minecraft": "26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"modmenu": "*"
+	}
+}
