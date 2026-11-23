@@ -8,11 +8,16 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.PlayerInfo;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 public class TrueHealthOverlay implements HudElement {
 
-    private static final int GAP = 12;
+    private static final int HORIZONTAL_GAP = 8;
+    private static final int VERTICAL_GAP = 12;
+
+    private record Indicator(String text, IndicatorConfig.Display display) {}
 
     @Override
     public void extractRenderState(
@@ -46,85 +51,146 @@ public class TrueHealthOverlay implements HudElement {
             }
         }
 
+        List<Indicator> indicators = new ArrayList<>();
+
         if (config.health.enabled) {
-            String text = config.health.showLabel ? "HP " + hp : hp;
-            drawIndicator(graphics, client, text, config.health, 0);
+            indicators.add(new Indicator(
+                    config.health.showLabel ? "HP " + hp : hp,
+                    config.health
+            ));
         }
 
         if (config.ping.enabled) {
-            String text = config.ping.showLabel ? ping + " ms" : ping;
-            drawIndicator(graphics, client, text, config.ping, 1);
+            indicators.add(new Indicator(
+                    config.ping.showLabel ? ping + " ms" : ping,
+                    config.ping
+            ));
         }
 
         if (config.fps.enabled) {
-            String text = config.fps.showLabel ? fps + " FPS" : fps;
-            drawIndicator(graphics, client, text, config.fps, 2);
+            indicators.add(new Indicator(
+                    config.fps.showLabel ? fps + " FPS" : fps,
+                    config.fps
+            ));
+        }
+
+        for (Indicator indicator : indicators) {
+            drawIndicator(graphics, client, indicator, indicators, config);
         }
     }
 
     private void drawIndicator(
             GuiGraphicsExtractor graphics,
             Minecraft client,
-            String text,
-            IndicatorConfig.Display display,
-            int index) {
+            Indicator indicator,
+            List<Indicator> indicators,
+            IndicatorConfig config) {
 
-        int width = client.font.width(text);
+        IndicatorConfig.Display display = indicator.display();
+        IndicatorConfig.Position position = display.position;
+
+        if (position == IndicatorConfig.Position.ABOVE_HOTBAR) {
+            position = IndicatorConfig.Position.ABOVE_HEALTH;
+        }
+
+        int width = client.font.width(indicator.text());
         int screenWidth = graphics.guiWidth();
         int screenHeight = graphics.guiHeight();
 
-        int stack = getStackIndex(display, index);
-        int x;
-        int y;
+        int index = 0;
+        int totalWidth = 0;
+        int horizontalOffset = 0;
 
-        switch (display.position) {
-            case TOP_LEFT -> {
-                x = 8;
-                y = 8 + stack * GAP;
+        for (Indicator other : indicators) {
+            IndicatorConfig.Position otherPosition = other.display().position;
+
+            if (otherPosition == IndicatorConfig.Position.ABOVE_HOTBAR) {
+                otherPosition = IndicatorConfig.Position.ABOVE_HEALTH;
             }
-            case TOP_RIGHT -> {
-                x = screenWidth - width - 8;
-                y = 8 + stack * GAP;
+
+            if (otherPosition != position) {
+                continue;
             }
-            case BOTTOM_LEFT -> {
-                x = 8;
-                y = screenHeight - 40 - stack * GAP;
+
+            int otherWidth = client.font.width(other.text());
+
+            if (other == indicator) {
+                break;
             }
-            case BOTTOM_RIGHT -> {
-                x = screenWidth - width - 8;
-                y = screenHeight - 40 - stack * GAP;
+
+            index++;
+            horizontalOffset += otherWidth + HORIZONTAL_GAP;
+        }
+
+        for (Indicator other : indicators) {
+            IndicatorConfig.Position otherPosition = other.display().position;
+
+            if (otherPosition == IndicatorConfig.Position.ABOVE_HOTBAR) {
+                otherPosition = IndicatorConfig.Position.ABOVE_HEALTH;
             }
-            default -> {
-                x = (screenWidth - width) / 2;
-                y = screenHeight - 50 - stack * GAP;
+
+            if (otherPosition == position) {
+                totalWidth += client.font.width(other.text()) + HORIZONTAL_GAP;
             }
         }
 
-        // No background and no text shadow.
+        totalWidth -= HORIZONTAL_GAP;
+
+        int x;
+        int y;
+
+        boolean horizontal = config.orientation
+                == IndicatorConfig.Orientation.HORIZONTAL;
+
+        int verticalOffset = horizontal ? 0 : index * VERTICAL_GAP;
+        int horizontalOffsetFinal = horizontal ? horizontalOffset : 0;
+
+        switch (position) {
+            case TOP_LEFT -> {
+                x = 8 + horizontalOffsetFinal;
+                y = 8 + verticalOffset;
+            }
+
+            case TOP_RIGHT -> {
+                x = screenWidth - 8 - (horizontal ? totalWidth : width)
+                        + horizontalOffsetFinal;
+                y = 8 + verticalOffset;
+            }
+
+            case BOTTOM_LEFT -> {
+                x = 8 + horizontalOffsetFinal;
+                y = screenHeight - 40 - verticalOffset;
+            }
+
+            case BOTTOM_RIGHT -> {
+                x = screenWidth - 8 - (horizontal ? totalWidth : width)
+                        + horizontalOffsetFinal;
+                y = screenHeight - 40 - verticalOffset;
+            }
+
+            case ABOVE_FOOD -> {
+                x = screenWidth / 2 + 10 + horizontalOffsetFinal;
+                y = screenHeight - 52 - verticalOffset;
+            }
+
+            case ABOVE_HEALTH, ABOVE_HOTBAR -> {
+                x = screenWidth / 2 - 91 + horizontalOffsetFinal;
+                y = screenHeight - 52 - verticalOffset;
+            }
+
+            default -> {
+                x = 8;
+                y = 8;
+            }
+        }
+
         graphics.text(
                 client.font,
-                text,
+                indicator.text(),
                 x,
                 y,
                 display.color,
                 false
         );
-    }
-
-    private int getStackIndex(IndicatorConfig.Display display, int index) {
-        IndicatorConfig config = IndicatorConfig.INSTANCE;
-        int stack = 0;
-
-        if (index > 0 && config.health.enabled
-                && config.health.position == display.position) {
-            stack++;
-        }
-
-        if (index > 1 && config.ping.enabled
-                && config.ping.position == display.position) {
-            stack++;
-        }
-
-        return stack;
     }
 }

@@ -26,6 +26,15 @@ public class IndicatorsConfigScreen extends Screen {
             "Cyan", "Pink", "White", "Orange"
     };
 
+    private static final IndicatorConfig.Position[] POSITIONS = {
+            IndicatorConfig.Position.TOP_LEFT,
+            IndicatorConfig.Position.TOP_RIGHT,
+            IndicatorConfig.Position.BOTTOM_LEFT,
+            IndicatorConfig.Position.BOTTOM_RIGHT,
+            IndicatorConfig.Position.ABOVE_HEALTH,
+            IndicatorConfig.Position.ABOVE_FOOD
+    };
+
     public IndicatorsConfigScreen(Screen parent) {
         super(Component.literal("Indicators Settings"));
         this.parent = parent;
@@ -40,6 +49,24 @@ public class IndicatorsConfigScreen extends Screen {
         addDisplayRow("HP", IndicatorConfig.INSTANCE.health, startX, startY);
         addDisplayRow("Ping", IndicatorConfig.INSTANCE.ping, startX, startY + rowGap);
         addDisplayRow("FPS", IndicatorConfig.INSTANCE.fps, startX, startY + rowGap * 2);
+
+        addRenderableWidget(
+                Button.builder(
+                        orientationText(),
+                        button -> {
+                            IndicatorConfig.Orientation[] orientations =
+                                    IndicatorConfig.Orientation.values();
+
+                            int next = (IndicatorConfig.INSTANCE.orientation.ordinal() + 1)
+                                    % orientations.length;
+
+                            IndicatorConfig.INSTANCE.orientation = orientations[next];
+
+                            button.setMessage(orientationText());
+                            IndicatorConfig.save();
+                        }
+                ).bounds(this.width / 2 - 110, startY + rowGap * 3, 220, 20).build()
+        );
 
         addRenderableWidget(
                 Button.builder(Component.literal("Done"), button -> onClose())
@@ -75,11 +102,16 @@ public class IndicatorsConfigScreen extends Screen {
                 Button.builder(
                         positionText(display),
                         button -> {
-                            IndicatorConfig.Position[] positions =
-                                    IndicatorConfig.Position.values();
+                            int current = 0;
 
-                            int next = (display.position.ordinal() + 1) % positions.length;
-                            display.position = positions[next];
+                            for (int i = 0; i < POSITIONS.length; i++) {
+                                if (POSITIONS[i] == display.position) {
+                                    current = i;
+                                    break;
+                                }
+                            }
+
+                            display.position = POSITIONS[(current + 1) % POSITIONS.length];
 
                             button.setMessage(positionText(display));
                             IndicatorConfig.save();
@@ -124,9 +156,6 @@ public class IndicatorsConfigScreen extends Screen {
                         }
                 ).bounds(buttonX, y, 90, 20).build()
         );
-
-        // Row title
-        // Drawn in extractRenderState below.
     }
 
     private Component enabledText(IndicatorConfig.Display display) {
@@ -149,6 +178,12 @@ public class IndicatorsConfigScreen extends Screen {
 
     private Component labelText(IndicatorConfig.Display display) {
         return Component.literal(display.showLabel ? "Label: ON" : "Label: OFF");
+    }
+
+    private Component orientationText() {
+        return Component.literal(
+                "Orientation: " + IndicatorConfig.INSTANCE.orientation.displayName
+        );
     }
 
     @Override
